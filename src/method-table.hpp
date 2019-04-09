@@ -49,7 +49,10 @@ namespace Fish::Java::Detail::MethodInfo {
         public:
         u16 name_index = 0;
         u16 descriptor_index = 0;
-        std::optional<Code> code;
+
+        Code& code() {
+            return *m_code;
+        }
 
         Parsed(Stream& stream, const ConstantPool& pool) :
         name_index((read_start(stream), stream.read_u16())),
@@ -64,10 +67,10 @@ namespace Fish::Java::Detail::MethodInfo {
                 std::string name = pool.get<CPE::UTF8>(name_index).str;
 
                 if (name == "Code") {
-                    if (code) {
-                        throw std::runtime_error("Duplicate Code attributes");
+                    if (m_code) {
+                        throw std::runtime_error("Duplicate Code attribute");
                     }
-                    code = Code(stream);
+                    m_code = Code(stream);
                     continue;
                 }
 
@@ -76,12 +79,14 @@ namespace Fish::Java::Detail::MethodInfo {
                 }
             }
 
-            if (!code) {
+            if (!m_code) {
                 throw std::runtime_error("Method is missing Code attribute");
             }
         }
 
         private:
+        std::optional<Code> m_code;
+
         void read_start(Stream& stream) {
             stream.read_u16();  // Access flags
         }
@@ -107,7 +112,7 @@ namespace Fish::Java {
         MethodInfo(Parsed parsed) :
         name_index(parsed.name_index),
         descriptor_index(parsed.descriptor_index),
-        code(*parsed.code) {
+        code(std::move(parsed.code())) {
         }
     };
 
