@@ -4,18 +4,19 @@
 #include "utils.hpp"
 #include <stdexcept>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace Fish::Java {
-    class Code {
+    class CodeInfo {
         public:
         u16 max_stack = 0;
         u16 max_locals = 0;
         std::vector<u8> code;
 
-        Code() = default;
+        CodeInfo() = default;
 
-        Code(Stream& stream) :
+        CodeInfo(Stream& stream) :
         max_stack(stream.read_u16()),
         max_locals(stream.read_u16())
         {
@@ -50,7 +51,7 @@ namespace Fish::Java::Detail::MethodInfo {
         u16 name_index = 0;
         u16 descriptor_index = 0;
 
-        Code& code() {
+        CodeInfo& code() {
             return *m_code;
         }
 
@@ -70,22 +71,24 @@ namespace Fish::Java::Detail::MethodInfo {
                     if (m_code) {
                         throw std::runtime_error("Duplicate Code attribute");
                     }
-                    m_code = Code(stream);
+                    m_code = CodeInfo(stream);
                     continue;
                 }
 
+                // Skip rest of attribute
                 for (u32 j = 0; j < length; ++j) {
                     stream.read_u8();  // Info byte
                 }
             }
 
+            // Ensure required attributes were found
             if (!m_code) {
                 throw std::runtime_error("Method is missing Code attribute");
             }
         }
 
         private:
-        std::optional<Code> m_code;
+        std::optional<CodeInfo> m_code;
 
         void read_start(Stream& stream) {
             stream.read_u16();  // Access flags
@@ -98,7 +101,7 @@ namespace Fish::Java {
         public:
         u16 name_index = 0;
         u16 descriptor_index = 0;
-        Code code;
+        CodeInfo code;
 
         MethodInfo() = default;
 
@@ -118,12 +121,35 @@ namespace Fish::Java {
 
     class MethodTable {
         public:
+        using NameTypeDesc = ConstantPoolEntry::NameTypeDesc;
+
         MethodTable(Stream& stream, const ConstantPool& pool) {
             const u16 count = stream.read_u16();
             m_entries.reserve(count);
             for (u16 i = 0; i < count; ++i) {
                 m_entries.emplace_back(stream, pool);
             }
+        }
+
+        const MethodInfo* find(const NameTypeDesc& desc) const {
+            for (auto& info : m_entries) {
+                if (info.name_index != desc.name_index) continue;
+                if (info.descriptor_index != desc.type_desc_index) continue;
+                return &info;
+            }
+            return nullptr;
+        }
+
+        const MethodInfo* main(const ConstantPool& pool) const {
+            for (auto& info : m_entries) {
+                auto& name = pool.get<ConstantPoolEntry::UTF8>(
+                    info.name_index
+                );
+                if (name.str == "main") {
+                    return &info;
+                }
+            }
+            return nullptr;
         }
 
         private:

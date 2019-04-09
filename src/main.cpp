@@ -1,4 +1,5 @@
 #include "class-file.hpp"
+#include "interpreter.hpp"
 #include "stream.hpp"
 #include <fstream>
 #include <iostream>
@@ -8,16 +9,17 @@
 using namespace Fish::Java;
 
 int main() {
-    std::ifstream is("Test.class");
-    Stream stream(is);
-    ClassFile cls(stream);
-    if (is.eof()) {
+    std::ifstream fstream("Test.class");
+    ClassFile cls(fstream);
+    if (fstream.eof()) {
         throw std::runtime_error("Unexpected EOF");
     }
-    is.get();
-    if (!is.eof()) {
+    fstream.get();
+    if (!fstream.eof()) {
         throw std::runtime_error("Extra data");
     }
-    std::cout << "Processed " << stream.pos() << " bytes\n";
+
+    Interpreter interpreter(cls);
+    interpreter.run();
     return 0;
 }

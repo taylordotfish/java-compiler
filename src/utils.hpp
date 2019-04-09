@@ -2,7 +2,7 @@
 #include "stream.hpp"
 
 namespace Fish::Java::Utils {
-    void skip_attribute_table(Stream& stream) {
+    inline void skip_attribute_table(Stream& stream) {
         const u16 count = stream.read_u16();
         for (u16 i = 0; i < count; ++i) {
             stream.read_u16();  // Attribute name index

@@ -12,18 +12,6 @@ namespace Fish::Java::ConstantPoolEntry {
         struct Base {
             static inline constexpr u16 nslots = 1;
         };
-
-        struct BaseMemberRef : Base {
-            u16 class_ref_index = 0;
-            u16 name_type_index = 0;
-
-            BaseMemberRef() = default;
-
-            BaseMemberRef(Stream& stream) :
-            class_ref_index(stream.read_u16()),
-            name_type_index(stream.read_u16()) {
-            }
-        };
     }
 
     struct UTF8 : Detail::Base {
@@ -102,16 +90,32 @@ namespace Fish::Java::ConstantPoolEntry {
         }
     };
 
-    struct FieldRef : Detail::BaseMemberRef {
-        using Detail::BaseMemberRef::BaseMemberRef;
+    struct BaseMemberRef : Detail::Base {
+        u16 class_ref_index = 0;
+        u16 name_type_index = 0;
+
+        BaseMemberRef() = default;
+
+        BaseMemberRef(Stream& stream) :
+        class_ref_index(stream.read_u16()),
+        name_type_index(stream.read_u16()) {
+        }
     };
 
-    struct MethodRef : Detail::BaseMemberRef {
-        using Detail::BaseMemberRef::BaseMemberRef;
+    struct FieldRef : BaseMemberRef {
+        using BaseMemberRef::BaseMemberRef;
     };
 
-    struct InterfaceMethodRef : Detail::BaseMemberRef {
-        using Detail::BaseMemberRef::BaseMemberRef;
+    struct BaseMethodRef : BaseMemberRef {
+        using BaseMemberRef::BaseMemberRef;
+    };
+
+    struct MethodRef : BaseMethodRef {
+        using BaseMethodRef::BaseMethodRef;
+    };
+
+    struct InterfaceMethodRef : BaseMethodRef {
+        using BaseMethodRef::BaseMethodRef;
     };
 
     struct NameTypeDesc : Detail::Base {
@@ -216,6 +220,8 @@ namespace Fish::Java {
         public:
         class Entry {
             public:
+            using Variant = ConstantPoolEntry::Detail::Variant;
+
             template <typename T>
             Entry(T&& obj) : m_variant(std::forward<T>(obj)) {
             }
@@ -224,13 +230,15 @@ namespace Fish::Java {
             m_variant(make(stream, nslots)) {
             }
 
-            template <typename F>
-            auto&& visit(F&& func) {
-                return std::visit(std::forward<F>(func), m_variant);
+            Variant& variant() {
+                return m_variant;
+            }
+
+            const Variant& variant() const {
+                return m_variant;
             }
 
             private:
-            using Variant = ConstantPoolEntry::Detail::Variant;
             Variant m_variant;
             Variant make(Stream& stream, u16& nslots) const;
 
@@ -276,14 +284,14 @@ namespace Fish::Java {
 
         template <typename T>
         T& get(u16 i) {
-            return (*this)[i].visit([] (auto& obj) -> T& {
+            return std::visit([] (auto& obj) -> T& {
                 using U = std::decay_t<decltype(obj)>;
-                if constexpr (std::is_same_v<U, T>) {
+                if constexpr (std::is_convertible_v<U*, T*>) {
                     return obj;
                 } else {
                     throw std::runtime_error("Bad pool entry type");
                 }
-            });
+            }, (*this)[i].variant());
         }
 
         template <typename T>
