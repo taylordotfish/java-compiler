@@ -95,6 +95,8 @@ namespace Fish::Java {
         u16 descriptor_index = 0;
         Code code;
 
+        MethodInfo() = default;
+
         MethodInfo(Stream& stream, const ConstantPool& pool) :
         MethodInfo(Parsed(stream, pool)) {
         }
