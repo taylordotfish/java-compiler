@@ -3,6 +3,9 @@ BUILD_DIR = build
 # Set to 1 for debug mode.
 DEBUG = 1
 
+# Set to 1 to keep assertions in non-debug mode.
+ASSERTIONS = 0
+
 BINARY = compiler
 SOURCES = $(shell find src -type f -name '*.cpp')
 
@@ -19,9 +22,14 @@ LDLIBS =
 
 ifeq ($(DEBUG), 1)
 	CXXFLAGS += -Og -ggdb
+	ASSERTIONS := 1
 else
-	CXXFLAGS += -Ofast -flto -fuse-linker-plugin -DNDEBUG
+	CXXFLAGS += -Ofast -flto -fuse-linker-plugin
 	LDFLAGS += -Ofast -flto -fuse-linker-plugin
+endif
+
+ifneq ($(ASSERTIONS), 1)
+	CXXFLAGS += -DNDEBUG
 endif
 
 
