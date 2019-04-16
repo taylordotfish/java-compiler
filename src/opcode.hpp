@@ -1,6 +1,6 @@
 #pragma once
 
-namespace Fish::Java {
+namespace fish::java {
     enum class Opcode {
         iconst_m1 = 0x2,
         iconst_0 = 0x3,
@@ -45,10 +45,12 @@ namespace Fish::Java {
 
         Goto = 0xa7,
         bipush = 0x10,
+        sipush = 0x11,
         invokestatic = 0xb8,
         invokevirtual = 0xb6,
         Return = 0xb1,
         ireturn = 0xac,
         getstatic = 0xb2,
+        pop = 0x57,
     };
 }

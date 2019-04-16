@@ -4,6 +4,7 @@
 #include "method-table.hpp"
 #include "opcode.hpp"
 #include "typedefs.hpp"
+#include "utils.hpp"
 #include <cassert>
 #include <ios>
 #include <iostream>
@@ -11,7 +12,7 @@
 #include <stdexcept>
 #include <type_traits>
 
-namespace Fish::Java {
+namespace fish::java {
     class Interpreter {
         using Stack = std::vector<u32>;
         using Locals = std::vector<u32>;
@@ -71,9 +72,9 @@ namespace Fish::Java {
         private:
         const ClassFile* m_cls = nullptr;
 
-        void exec(const std::vector<u8> code, Frame& frame) const {
+        void exec(const CodeSeq& code, Frame& frame) const {
             for (u64 i = 0; i < code.size();) {
-                const u64 inc = instr(&code[i], frame);
+                const s64 inc = instr(&code[i], frame);
                 if (inc == 0) {
                     return;
                 }
@@ -91,23 +92,19 @@ namespace Fish::Java {
 
         template <typename T>
         static inline constexpr bool is_method_ref = std::is_convertible_v<
-            std::decay_t<T>*, ConstantPoolEntry::BaseMethodRef*
+            std::decay_t<T>*, pool::BaseMethodRef*
         >;
 
         s64 instr_invokestatic(const u8* code, Frame& frame) const;
         s64 instr_invokevirtual(const u8* code, Frame& frame) const;
 
-        void check_print_mdesc(
-            const MethodDescriptor& mdesc, const std::string& fname
-        ) const;
-
         void run_print(const MethodDescriptor& mdesc, Frame& frame) const {
-            check_print_mdesc(mdesc, "print()");
+            utils::check_print_method_descriptor(mdesc, "print()");
             print_raw(mdesc, frame);
         }
 
         void run_println(const MethodDescriptor& mdesc, Frame& frame) const {
-            check_print_mdesc(mdesc, "println()");
+            utils::check_print_method_descriptor(mdesc, "println()");
             print_raw(mdesc, frame);
             std::cout << std::endl;
         }

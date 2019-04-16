@@ -1,20 +1,23 @@
 #pragma once
 #include "stream.hpp"
 #include "typedefs.hpp"
+#include "utils.hpp"
 #include <optional>
 #include <stdexcept>
+#include <tuple>
 #include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
-namespace Fish::Java::ConstantPoolEntry {
-    namespace Detail {
+namespace fish::java::pool {
+    namespace detail {
         struct Base {
             static inline constexpr u16 nslots = 1;
         };
     }
 
-    struct UTF8 : Detail::Base {
+    struct UTF8 : detail::Base {
         std::string str;
 
         UTF8() = default;
@@ -28,7 +31,7 @@ namespace Fish::Java::ConstantPoolEntry {
         }
     };
 
-    struct Integer : Detail::Base {
+    struct Integer : detail::Base {
         s32 value = 0;
 
         Integer() = default;
@@ -38,7 +41,7 @@ namespace Fish::Java::ConstantPoolEntry {
         }
     };
 
-    struct Float : Detail::Base {
+    struct Float : detail::Base {
         f32 value = 0;
 
         Float() = default;
@@ -48,7 +51,7 @@ namespace Fish::Java::ConstantPoolEntry {
         }
     };
 
-    struct Long : Detail::Base {
+    struct Long : detail::Base {
         static constexpr inline u16 nslots = 2;
         s64 value = 0;
 
@@ -59,7 +62,7 @@ namespace Fish::Java::ConstantPoolEntry {
         }
     };
 
-    struct Double : Detail::Base {
+    struct Double : detail::Base {
         static constexpr inline u16 nslots = 2;
         f64 value = 0;
 
@@ -70,7 +73,7 @@ namespace Fish::Java::ConstantPoolEntry {
         }
     };
 
-    struct ClassRef : Detail::Base {
+    struct ClassRef : detail::Base {
         u16 index = 0;
 
         ClassRef() = default;
@@ -80,7 +83,7 @@ namespace Fish::Java::ConstantPoolEntry {
         }
     };
 
-    struct StringRef : Detail::Base {
+    struct StringRef : detail::Base {
         u16 index = 0;
 
         StringRef() = default;
@@ -90,7 +93,7 @@ namespace Fish::Java::ConstantPoolEntry {
         }
     };
 
-    struct BaseMemberRef : Detail::Base {
+    struct BaseMemberRef : detail::Base {
         u16 class_ref_index = 0;
         u16 name_type_index = 0;
 
@@ -118,19 +121,41 @@ namespace Fish::Java::ConstantPoolEntry {
         using BaseMethodRef::BaseMethodRef;
     };
 
-    struct NameTypeDesc : Detail::Base {
+    struct NameAndType : detail::Base {
         u16 name_index = 0;
-        u16 type_desc_index = 0;
+        u16 desc_index = 0;
 
-        NameTypeDesc() = default;
+        NameAndType() = default;
 
-        NameTypeDesc(Stream& stream) :
+        NameAndType(u16 name_index, u16 desc_index) :
+        name_index(name_index), desc_index(desc_index) {
+        }
+
+        NameAndType(Stream& stream) :
         name_index(stream.read_u16()),
-        type_desc_index(stream.read_u16()) {
+        desc_index(stream.read_u16()) {
+        }
+
+        private:
+        auto data() const {
+            return std::make_tuple(name_index, desc_index);
+        }
+
+        public:
+        bool operator==(const NameAndType& other) const {
+            return data() == other.data();
+        }
+
+        bool operator!=(const NameAndType& other) const {
+            return data() != other.data();
+        }
+
+        bool operator<(const NameAndType& other) const {
+            return data() < other.data();
         }
     };
 
-    struct MethodHandle : Detail::Base {
+    struct MethodHandle : detail::Base {
         u8 type_desc = 0;
         u16 index = 0;
 
@@ -142,7 +167,7 @@ namespace Fish::Java::ConstantPoolEntry {
         }
     };
 
-    struct MethodType : Detail::Base {
+    struct MethodType : detail::Base {
         u16 index = 0;
 
         MethodType() = default;
@@ -152,7 +177,7 @@ namespace Fish::Java::ConstantPoolEntry {
         }
     };
 
-    struct Dynamic : Detail::Base {
+    struct Dynamic : detail::Base {
         u32 value = 0;
 
         Dynamic() = default;
@@ -162,7 +187,7 @@ namespace Fish::Java::ConstantPoolEntry {
         }
     };
 
-    struct InvokeDynamic : Detail::Base {
+    struct InvokeDynamic : detail::Base {
         u16 value = 0;
 
         InvokeDynamic() = default;
@@ -172,7 +197,7 @@ namespace Fish::Java::ConstantPoolEntry {
         }
     };
 
-    struct Module : Detail::Base {
+    struct Module : detail::Base {
         u16 value = 0;
 
         Module() = default;
@@ -182,7 +207,7 @@ namespace Fish::Java::ConstantPoolEntry {
         }
     };
 
-    struct Package : Detail::Base {
+    struct Package : detail::Base {
         u16 value = 0;
 
         Package() = default;
@@ -191,55 +216,42 @@ namespace Fish::Java::ConstantPoolEntry {
         value(stream.read_u16()) {
         }
     };
-
-    namespace Detail {
-        using Variant = std::variant<
-            UTF8,
-            Integer,
-            Float,
-            Long,
-            Double,
-            ClassRef,
-            StringRef,
-            FieldRef,
-            MethodRef,
-            InterfaceMethodRef,
-            NameTypeDesc,
-            MethodHandle,
-            MethodType,
-            Dynamic,
-            InvokeDynamic,
-            Module,
-            Package
-        >;
-    }
 }
 
-namespace Fish::Java {
+namespace fish::java::pool::detail {
+    using Variant = std::variant<
+        UTF8,
+        Integer,
+        Float,
+        Long,
+        Double,
+        ClassRef,
+        StringRef,
+        FieldRef,
+        MethodRef,
+        InterfaceMethodRef,
+        NameAndType,
+        MethodHandle,
+        MethodType,
+        Dynamic,
+        InvokeDynamic,
+        Module,
+        Package
+    >;
+
     class ConstantPool {
         public:
-        class Entry {
+        class Entry : private utils::VariantWrapper<Variant> {
             public:
-            using Variant = ConstantPoolEntry::Detail::Variant;
-
-            template <typename T>
-            Entry(T&& obj) : m_variant(std::forward<T>(obj)) {
-            }
+            using VariantWrapper::VariantWrapper;
+            using VariantWrapper::visit;
+            using VariantWrapper::get;
 
             Entry(Stream& stream, u16& nslots) :
-            m_variant(make(stream, nslots)) {
-            }
-
-            Variant& variant() {
-                return m_variant;
-            }
-
-            const Variant& variant() const {
-                return m_variant;
+            VariantWrapper(make(stream, nslots)) {
             }
 
             private:
-            Variant m_variant;
             Variant make(Stream& stream, u16& nslots) const;
 
             template <typename T>
@@ -282,16 +294,19 @@ namespace Fish::Java {
             return const_cast<ConstantPool&>(*this)[i];
         }
 
+        public:
         template <typename T>
         T& get(u16 i) {
-            return std::visit([] (auto& obj) -> T& {
-                using U = std::decay_t<decltype(obj)>;
-                if constexpr (std::is_convertible_v<U*, T*>) {
-                    return obj;
-                } else {
+            return (*this)[i].visit([] (auto& obj) -> T& {
+                constexpr bool error = !std::is_convertible_v<
+                    std::decay_t<decltype(obj)>*, T*
+                >;
+                if constexpr (error) {
                     throw std::runtime_error("Bad pool entry type");
+                } else {
+                    return obj;
                 }
-            }, (*this)[i].variant());
+            });
         }
 
         template <typename T>
@@ -302,4 +317,8 @@ namespace Fish::Java {
         private:
         std::vector<std::optional<Entry>> m_pool;
     };
+}
+
+namespace fish::java {
+    using pool::detail::ConstantPool;
 }

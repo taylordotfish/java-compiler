@@ -7,13 +7,13 @@ DEBUG = 1
 ASSERTIONS = 0
 
 BINARY = compiler
-SOURCES = $(shell find src -type f -name '*.cpp')
+SOURCES = $(shell find src -type f -name '*.cpp' -o -name '*.s')
 
 
 
 CXX = g++
 CXXFLAGS = \
-	-Wall -Wextra -Wno-error -pedantic -std=c++17 -fpic -MMD -MP -Isrc \
+	-Wall -Wextra -pedantic -std=c++17 -fpic -MMD -MP -Isrc \
 	-fvisibility=hidden
 LDFLAGS =
 LDLIBS =
@@ -22,7 +22,7 @@ LDLIBS =
 
 ifeq ($(DEBUG), 1)
 	CXXFLAGS += -Og -ggdb
-	ASSERTIONS := 1
+	ASSERTIONS = 1
 else
 	CXXFLAGS += -Ofast -flto -fuse-linker-plugin
 	LDFLAGS += -Ofast -flto -fuse-linker-plugin
@@ -57,6 +57,9 @@ $(ALL_BINARIES):
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 $(OBJ_DIR)/%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+$(OBJ_DIR)/%.o: %.s
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 -include $(ALL_OBJECTS:.o=.d)

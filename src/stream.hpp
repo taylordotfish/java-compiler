@@ -4,7 +4,7 @@
 #include <cstring>
 #include <istream>
 
-namespace Fish::Java {
+namespace fish::java {
     class Stream {
         public:
         Stream(std::istream& stream) : m_stream(stream) {

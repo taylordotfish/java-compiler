@@ -6,19 +6,19 @@
 #include "utils.hpp"
 #include <stdexcept>
 
-namespace Fish::Java {
+namespace fish::java {
     class ClassFile {
         public:
         ConstantPool cpool;
-        u16 this_index = 0;
+        u16 self_index = 0;
         MethodTable methods;
 
         ClassFile(Stream& stream) :
         cpool((read_start(stream), stream)),
-        this_index((after_cpool(stream), stream.read_u16())),
-        methods((after_this_index(stream), stream), cpool)
+        self_index((after_cpool(stream), stream.read_u16())),
+        methods((after_self_index(stream), stream), cpool)
         {
-            Utils::skip_attribute_table(stream);
+            utils::skip_attribute_table(stream);
         }
 
         ClassFile(std::istream& stream) :
@@ -43,7 +43,7 @@ namespace Fish::Java {
             stream.read_u16();  // Access flags
         }
 
-        void after_this_index(Stream& stream) {
+        void after_self_index(Stream& stream) {
             stream.read_u16();  // Super class index
             read_interface_table(stream);
             read_field_table(stream);
@@ -62,7 +62,7 @@ namespace Fish::Java {
                 stream.read_u16();  // Access flags
                 stream.read_u16();  // Name index
                 stream.read_u16();  // Descriptor index
-                Utils::skip_attribute_table(stream);
+                utils::skip_attribute_table(stream);
             }
         }
     };

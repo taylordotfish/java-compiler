@@ -1,9 +1,5 @@
-class Test {
-    public static void main(String[] args) {
-        printPrimes(1, 100);
-    }
-
-    private static void printPrimes(int start, int end) {
+class Primes {
+    public static void printPrimes(int start, int end) {
         System.out.print('P');
         System.out.print('r');
         System.out.print('i');
@@ -31,7 +27,7 @@ class Test {
         }
     }
 
-    private static boolean isPrime(int x) {
+    public static boolean isPrime(int x) {
         for (int i = 2; i < x >> 1; ++i) {
             if (isDivisible(x, i)) {
                 return false;
@@ -40,9 +36,13 @@ class Test {
         return x >= 2;
     }
 
-    private static boolean isDivisible(int dividend, int divisor) {
+    public static boolean isDivisible(int dividend, int divisor) {
         int i = divisor;
         for (; i < dividend; i += divisor);
         return i == dividend;
+    }
+
+    public static void main(String[] args) {
+        printPrimes(1, 120);
     }
 }

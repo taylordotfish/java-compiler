@@ -1,6 +1,6 @@
 #include "interpreter.hpp"
 
-namespace Fish::Java {
+namespace fish::java {
     s64 Interpreter::instr(const u8* code, Frame& frame) const {
         switch (static_cast<Opcode>(*code)) {
             case Opcode::iconst_m1:
@@ -17,7 +17,7 @@ namespace Fish::Java {
                 return 1;
             }
 
-            case Opcode::iload: {
+           case Opcode::iload: {
                 u8 index = code[1];
                 frame.push(frame.local(index));
                 return 2;
@@ -121,6 +121,11 @@ namespace Fish::Java {
                 return 2;
             }
 
+            case Opcode::sipush: {
+                frame.push(static_cast<s16>(code[1] << 8 | code[2]));
+                return 3;
+            }
+
             case Opcode::invokestatic: {
                 return instr_invokestatic(code, frame);
             }
@@ -145,6 +150,11 @@ namespace Fish::Java {
                 // NOTE: Ignoring object
                 frame.push(0);
                 return 3;
+            }
+
+            case Opcode::pop: {
+                frame.pop();
+                return 1;
             }
 
             default: {
@@ -242,41 +252,38 @@ namespace Fish::Java {
     // NOTE: Supports only static methods in the same class, arguments
     // must be integers, and the return type must be int or void.
     s64 Interpreter::instr_invokestatic(const u8* code, Frame& frame) const {
-        namespace CPE = ConstantPoolEntry;
         const u16 index = code[1] << 8 | code[2];
         const ConstantPool& cpool = m_cls->cpool;
 
-        auto& desc = std::visit(
-            [&] (auto& obj) -> const CPE::NameTypeDesc& {
+        auto& name_and_type = cpool[index].visit(
+            [&] (auto& obj) -> const pool::NameAndType& {
                 if constexpr (!is_method_ref<decltype(obj)>) {
                     throw std::runtime_error(
                         "Expected method entry in constant pool"
                     );
                 }
-                else if (obj.class_ref_index != m_cls->this_index) {
+                else if (obj.class_ref_index != m_cls->self_index) {
                     throw std::runtime_error(
                         "Cannot call method of other class"
                     );
                 }
                 else {
-                    return cpool.get<CPE::NameTypeDesc>(
+                    return cpool.get<pool::NameAndType>(
                         obj.name_type_index
                     );
                 }
-            },
-            cpool[index].variant()
+            }
         );
 
         const MethodTable& methods = m_cls->methods;
-        const MethodInfo* method = methods.find(desc);
+        const MethodInfo* method = methods.find(name_and_type);
         if (!method) {
             throw std::runtime_error("No such method");
         }
 
         const CodeInfo& code_info = method->code;
         Frame new_frame(code_info.max_locals, frame);
-        auto& sig = cpool.get<CPE::UTF8>(desc.type_desc_index);
-        MethodDescriptor mdesc(sig.str);
+        MethodDescriptor mdesc = method->descriptor(cpool);
         const std::size_t nargs = mdesc.nargs();
 
         // NOTE: Assuming only 32-bit arguments
@@ -287,71 +294,43 @@ namespace Fish::Java {
         return 3;
     }
 
-    // NOTE: Supports only println(int)
+    // NOTE: Supports only print() and println() with int, char, or void arg.
     s64 Interpreter::instr_invokevirtual(const u8* code, Frame& frame) const {
-        namespace CPE = ConstantPoolEntry;
         const u16 index = code[1] << 8 | code[2];
         const ConstantPool& cpool = m_cls->cpool;
 
-        auto& desc = std::visit(
-            [&] (auto& obj) -> const CPE::NameTypeDesc& {
+        auto& name_and_type = cpool[index].visit(
+            [&] (auto& obj) -> const pool::NameAndType& {
                 if constexpr (!is_method_ref<decltype(obj)>) {
                     throw std::runtime_error(
                         "Expected method entry in constant pool"
                     );
                 }
                 else {
-                    return cpool.get<CPE::NameTypeDesc>(
+                    return cpool.get<pool::NameAndType>(
                         obj.name_type_index
                     );
                 }
-            },
-            cpool[index].variant()
+            }
         );
 
-        auto& name = cpool.get<CPE::UTF8>(desc.name_index);
-        auto& sig = cpool.get<CPE::UTF8>(desc.type_desc_index);
-        MethodDescriptor mdesc(sig.str);
+        auto& name = cpool.get<pool::UTF8>(name_and_type.name_index).str;
+        auto& sig = cpool.get<pool::UTF8>(name_and_type.desc_index).str;
+        MethodDescriptor mdesc(sig);
 
-        if (name.str == "print") {
+        if (name == "print") {
             run_print(mdesc, frame);
-        } else if (name.str == "println") {
+        }
+        else if (name == "println") {
             run_println(mdesc, frame);
-        } else {
+        }
+        else {
             std::ostringstream msg;
-            msg << "Unsupported virtual method: " << name.str;
+            msg << "Unsupported virtual method: " << name;
             throw std::runtime_error(msg.str());
         }
+
         frame.pop();  // Object ref
         return 3;
-    }
-
-    void Interpreter::check_print_mdesc(
-            const MethodDescriptor& mdesc,
-            const std::string& fname) const {
-            ///
-        if (mdesc.nargs() > 1) {
-            std::ostringstream msg;
-            msg << "Too many arguments to " << fname << ": ";
-            msg << mdesc.nargs();
-            throw std::runtime_error(msg.str());
-        }
-
-        if (mdesc.rtype() != "V") {
-            std::ostringstream msg;
-            msg << "Invalid return type for " << fname << ": ";
-            msg << mdesc.rtype();
-            throw std::runtime_error(msg.str());
-        }
-
-        if (mdesc.nargs() == 0) {
-        } else if (mdesc.arg(0) == "C") {
-        } else if (mdesc.arg(0) == "I") {
-        } else {
-            std::ostringstream msg;
-            msg << "Invalid argument type for " << fname << ": ";
-            msg << mdesc.arg(0);
-            throw std::runtime_error(msg.str());
-        }
     }
 }
