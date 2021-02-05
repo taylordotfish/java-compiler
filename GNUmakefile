@@ -18,7 +18,7 @@
 BUILD_DIR = build
 
 # Set to 1 for debug mode.
-DEBUG = 1
+DEBUG = 0
 
 # Set to 1 to keep assertions in non-debug mode.
 ASSERTIONS = 0
