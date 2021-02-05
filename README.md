@@ -6,8 +6,9 @@ This is a toy interpreter and x86-64 compiler for Java bytecode (.class files).
 Building
 --------
 
-Run `make`. You’ll need a version of GCC capable of compiling C++17. Once the
-build succeeds, you can run `./build/compiler`.
+Run `make`, or `make -j<n>` to compile with `<n>` processes in parallel. You’ll
+need a version of GCC capable of compiling C++17. Once the build succeeds, you
+can run `./build/compiler`.
 
 License
 -------
