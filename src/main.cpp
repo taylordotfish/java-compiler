@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 taylor.fish <contact@taylor.fish>
+ * Copyright (C) 2019, 2021 taylor.fish <contact@taylor.fish>
  *
  * This file is part of java-compiler.
  *
@@ -41,6 +41,9 @@ Usage:
   compiler interpret <class-file>
   compiler compile <class-file> [<x64-out>]
   compiler ssa <class-file>
+
+If <x64-out> is provided to the "compile" command, the compiled code will be
+written to that file. Otherwise, it will be run immediately.
 )" + 1;
 
 static bool propagate_copies(ssa::Function& function) {
