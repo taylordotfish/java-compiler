@@ -195,6 +195,6 @@ namespace fish::java::utils {
 template <typename T>
 struct std::hash<fish::java::utils::Ref<T>> {
     auto operator()(const fish::java::utils::Ref<T>& self) {
-        return std::hash(&self.get())()();
+        return std::hash<fish::java::utils::Ref<T>>()(&self.get());
     }
 };
