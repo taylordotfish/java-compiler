@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 taylor.fish <contact@taylor.fish>
+ * Copyright (C) 2019, 2022 taylor.fish <contact@taylor.fish>
  *
  * This file is part of java-compiler.
  *
@@ -21,6 +21,7 @@
 #include "ssa.hpp"
 #include "../utils.hpp"
 #include <cstddef>
+#include <functional>
 #include <map>
 #include <optional>
 #include <type_traits>
@@ -30,7 +31,7 @@ namespace fish::java::ssa::live {
 
     struct CompareInstIter {
         bool operator()(InstIter it1, InstIter it2) const {
-            return &*it1 < &*it2;
+            return std::less()(&*it1, &*it2);
         }
     };
 
@@ -252,23 +253,21 @@ namespace fish::java::ssa::live {
             auto it = instructions.end();
             auto begin = instructions.begin();
 
-            if (it != begin) {
-                do {
-                    Inst& inst = *--it;
-                    InstSet inputs = this->inputs(it);
-                    InstSet outputs = this->outputs(it);
-                    for (InstIter out : outputs) {
-                        live.erase(out);
-                    }
-                    for (InstIter in : inputs) {
-                        live.insert(in);
-                    }
-                    for (InstIter in : live) {
-                        const void* ptr = &inst;
-                        m_life_map[in].insert(ptr);
-                        m_live_var_map[ptr].insert(in);
-                    }
-                } while (it != begin);
+            while (it != begin) {
+                Inst& inst = *--it;
+                InstSet inputs = this->inputs(it);
+                InstSet outputs = this->outputs(it);
+                for (InstIter out : outputs) {
+                    live.erase(out);
+                }
+                for (InstIter in : inputs) {
+                    live.insert(in);
+                }
+                for (InstIter in : live) {
+                    const void* ptr = &inst;
+                    m_life_map[in].insert(ptr);
+                    m_live_var_map[ptr].insert(in);
+                }
             }
 
             InstSet& prev = m_live[&block];
